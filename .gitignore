@@ -1,0 +1,13 @@
+# Test and coverage artifacts
+*.test
+*.out
+coverage.*
+
+# Local environment files that may hold API keys
+.env
+.env.*
+
+# Editors and OS noise
+.idea/
+.vscode/
+.DS_Store
