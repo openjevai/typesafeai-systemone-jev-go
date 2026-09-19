@@ -59,5 +59,22 @@
 // on rate limits and overloads. Errors are typed and inspectable with
 // errors.As; see APIError, RateLimitError, TimeoutError, and ConnectionError.
 //
+// For many independent calls, SystemOneAsync runs one in the background and
+// StreamSystemOne runs a bounded pool whose results arrive as they finish:
+//
+//	results, err := client.StreamSystemOne(ctx, requests, jev.WithStreamConcurrency(8))
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	for result := range results {
+//		if result.Err != nil {
+//			log.Printf("request %d failed: %v", result.Index, result.Err)
+//			continue
+//		}
+//		fmt.Println(result.Index, result.Response.Model)
+//	}
+//
+// The cmd/jev command uses the same client from the shell.
+//
 // This package has no third-party dependencies.
 package jev

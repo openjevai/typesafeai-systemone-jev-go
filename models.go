@@ -12,7 +12,8 @@ type ModelMetadata struct {
 	Name string `json:"name"`
 	// Description is a human-readable description of the model.
 	Description string `json:"description"`
-	// ReleaseDate is when the model or alias was released, as YYYY-MM-DD.
+	// ReleaseDate is the release date reported by the API, usually as
+	// YYYY-MM-DD.
 	ReleaseDate string `json:"release_date"`
 }
 

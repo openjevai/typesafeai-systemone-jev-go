@@ -259,6 +259,46 @@ When a later judgment needs an earlier answer as *context* (to fetch new state
 or pick new options), make a second call. Otherwise ask both now and combine in
 code.
 
+## Async, batching, and streaming
+
+TypeSafe evaluates every question of a request in one response, so there is no
+token stream inside a call. The concurrency wrappers work one level up, across
+whole calls:
+
+```go
+// One call in the background while the rest of the workflow runs.
+future := client.SystemOneAsync(ctx, request)
+// ... do other work ...
+response, err := future.Result()
+```
+
+```go
+// Many independent calls with bounded concurrency, delivered as they finish.
+results, err := client.StreamSystemOne(ctx, requests,
+	jev.WithStreamConcurrency(8), // calls in flight (default 4)
+	jev.WithStreamOrdered(true),  // emit in input order instead of completion order
+	jev.WithStreamCallOptions(jev.WithCallTimeout(30*time.Second)),
+)
+if err != nil {
+	return err
+}
+for result := range results {
+	if result.Err != nil {
+		log.Printf("request %d failed: %v", result.Index, result.Err)
+		continue
+	}
+	department, _ := result.Response.Choice("department")
+	fmt.Println(result.Index, department.Choice)
+}
+```
+
+The channel closes when every call has finished. Cancelling `ctx` fails the
+in-flight calls with `ctx.Err()`, stops the stream, and releases the workers —
+cancel it if you stop reading early. A request that fails validation is
+reported as a `StreamResult` with `ErrInvalidRequest` and does not affect the
+other calls. [examples/batch/main.go](examples/batch/main.go) shows both
+wrappers, and the CLI's `batch` command streams a JSON array of requests.
+
 ## State
 
 `State` may be a string, or structured data as a `map[string]any`, `[]any`, or
@@ -329,6 +369,58 @@ response, err := client.SystemOne(ctx, request,
 
 Logging never includes request or response bodies, and the API key is never
 logged.
+
+## Command line
+
+The `jev` command exposes the same API from a shell:
+
+```bash
+go install github.com/mheers/typesafeai-systemone-jev-go/cmd/jev@latest
+
+jev models
+jev noul --state "Wire transfer failed, please help" \
+    --instructions "Does this message convey urgency?"
+echo "The delivery is three days late." | jev score \
+    --instructions "How frustrated is the customer?" \
+    --level Calm --level Frustrated --level "Very angry"
+jev choice --state "The API returns 500s" \
+    --instructions "Which team should handle this?" \
+    --option billing=Payments --option technical
+jev ask --questions questions.json --state "My invoice is wrong"
+jev batch --file requests.json --concurrency 4 | jq .
+```
+
+```
+$ jev noul --state "Wire transfer failed, please help" --instructions "Does this message convey urgency?"
+answer  noul  0.98
+```
+
+| Command | Purpose |
+| --- | --- |
+| `models` | List the models available to the account |
+| `noul`, `choice`, `score` | Ask one typed question with flags |
+| `ask` | Ask a JSON object of questions (the wire format) about state |
+| `batch` | Stream a JSON array of requests, one NDJSON result per line |
+
+Common flags: `--state`, `--state-file`, `--state-json`, `--model`,
+`--timeout`, and `--json` for the raw response; `batch` adds `--file`,
+`--concurrency`, and `--ordered`. The state can also be piped on stdin, and
+`-` means stdin for `--questions`, `--state-file`, and `--file`. Exit codes are
+0 on success, 1 on a request failure, and 2 on a usage problem.
+
+## Cookbook examples
+
+The [examples](examples) directory has runnable programs for the patterns from
+the TypeSafe cookbooks:
+
+| Example | Pattern |
+| --- | --- |
+| [quickstart](examples/quickstart) | Noul, Choice, and Score in one call |
+| [triage](examples/triage) | Composite scoring with weights your code owns |
+| [guardrails](examples/guardrails) | One request per hazard, thresholds as policy |
+| [rerank](examples/rerank) | One Score question per candidate passage |
+| [extraction](examples/extraction) | Regex candidates, model selection, verbatim copy |
+| [batch](examples/batch) | `SystemOneAsync` and `StreamSystemOne` |
 
 ## Models
 
@@ -436,11 +528,13 @@ question := jev.RawQuestion{
 
 ## API surface
 
-- `Client` — `SystemOne`, `ListModels`, `Model`, `BaseURL`
+- `Client` — `SystemOne`, `SystemOneAsync`, `StreamSystemOne`, `ListModels`, `ListModelsAsync`, `Model`, `BaseURL`
 - Questions — `Noul`, `Choice`, `Score`, `RawQuestion`, `NoulCriteria`, `Choices`, `Questions`
 - Answers — `SystemOneResponse` (`Noul`, `Choice`, `Score`, `Nouls`, `Choices`, `Scores`, `Answer`), `NoulAnswer`, `ChoiceAnswer`, `ScoreAnswer`, `UnknownAnswer`, `Answers`, `Usage`
+- Concurrency — `Future[T]` (`Done`, `Result`, `Wait`), `StreamResult`, `StreamOption`s (`WithStreamConcurrency`, `WithStreamOrdered`, `WithStreamCallOptions`)
 - Models — `ModelMetadata`, `ModelsResponse`, `ModelJevLatest`, `ModelJevPreview`, `ModelJev1130`
 - Configuration — `Option`s, `CallOption`s, `RetryPolicy`, `DefaultRetryPolicy`
+- Command — `cmd/jev`
 - Errors — see above
 
 Full reference: [pkg.go.dev](https://pkg.go.dev/github.com/mheers/typesafeai-systemone-jev-go).
@@ -458,6 +552,8 @@ shows up as a failing test.
 gofmt -l .          # formatting
 go vet ./...        # static checks
 go test ./...       # unit tests, no network
+go run ./cmd/jev help   # the CLI
+go run ./examples/quickstart
 ```
 
 End-to-end tests run against the live API only when `TYPESAFE_API_KEY` is set,

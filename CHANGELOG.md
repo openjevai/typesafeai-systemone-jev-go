@@ -17,6 +17,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   forward compatibility.
 - Typed answers with accessors: `NoulAnswer`, `ChoiceAnswer`, `ScoreAnswer`,
   and `UnknownAnswer` for unrecognized answer kinds.
+- Async and batch wrappers: `SystemOneAsync`, `ListModelsAsync`, the generic
+  `Future[T]`, and `StreamSystemOne` with bounded concurrency, completion-order
+  or input-order delivery, and per-stream call options.
+- `cmd/jev` command line: `models`, `noul`, `choice`, `score`, `ask`, and
+  `batch` (NDJSON streaming of a JSON array of requests).
+- Runnable cookbook examples: quickstart, triage, guardrails, rerank,
+  extraction, and batch.
 - Retries with jittered exponential backoff, `Retry-After` support, a retry
   budget, and per-call overrides.
 - Typed errors (`APIError`, `AuthenticationError`, `RateLimitError`,
