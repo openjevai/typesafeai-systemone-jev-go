@@ -56,7 +56,7 @@ Run 'jev <command> -h' for the flags of a command.
 // success, 1 on a runtime failure, and 2 on a usage problem.
 func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprint(stderr, usageText)
+		_, _ = fmt.Fprint(stderr, usageText)
 		return 2
 	}
 	err := dispatch(args[0], args[1:], stdin, stdout, stderr)
@@ -72,10 +72,10 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	}
 	var usageErr *usageError
 	if errors.As(err, &usageErr) {
-		fmt.Fprintf(stderr, "jev: %v\n\nRun 'jev help' for usage.\n", usageErr)
+		_, _ = fmt.Fprintf(stderr, "jev: %v\n\nRun 'jev help' for usage.\n", usageErr)
 		return 2
 	}
-	fmt.Fprintf(stderr, "jev: %v\n", err)
+	_, _ = fmt.Fprintf(stderr, "jev: %v\n", err)
 	return 1
 }
 
@@ -266,7 +266,7 @@ func runModels(args []string, stdout, stderr io.Writer) error {
 	}
 	table := tabwriter.NewWriter(stdout, 0, 4, 2, ' ', 0)
 	for _, model := range response.Models {
-		fmt.Fprintf(table, "%s\t%s\t%s\n", model.Name, model.ReleaseDate, model.Description)
+		_, _ = fmt.Fprintf(table, "%s\t%s\t%s\n", model.Name, model.ReleaseDate, model.Description)
 	}
 	return table.Flush()
 }
@@ -548,15 +548,15 @@ func writeResponse(w io.Writer, response *jev.SystemOneResponse, asJSON bool) er
 	for _, id := range ids {
 		switch answer := response.Answers[id].(type) {
 		case jev.NoulAnswer:
-			fmt.Fprintf(table, "%s\tnoul\t%s\t\t\n", id, formatFloat(answer.Noul))
+			_, _ = fmt.Fprintf(table, "%s\tnoul\t%s\t\t\n", id, formatFloat(answer.Noul))
 		case jev.ChoiceAnswer:
-			fmt.Fprintf(table, "%s\tchoice\t%s\tconfidence %s\t%s\n",
+			_, _ = fmt.Fprintf(table, "%s\tchoice\t%s\tconfidence %s\t%s\n",
 				id, answer.Choice, formatFloat(answer.Confidence), formatStringProbabilities(answer.Probabilities))
 		case jev.ScoreAnswer:
-			fmt.Fprintf(table, "%s\tscore\t%s\tconfidence %s\t%s\n",
+			_, _ = fmt.Fprintf(table, "%s\tscore\t%s\tconfidence %s\t%s\n",
 				id, formatFloat(answer.Score), formatFloat(answer.Confidence), formatIntProbabilities(answer.Probabilities))
 		case jev.UnknownAnswer:
-			fmt.Fprintf(table, "%s\t%s\t%s\t\t\n", id, answer.Type, string(answer.Raw))
+			_, _ = fmt.Fprintf(table, "%s\t%s\t%s\t\t\n", id, answer.Type, string(answer.Raw))
 		}
 	}
 	return table.Flush()
