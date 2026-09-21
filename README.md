@@ -232,6 +232,17 @@ if department.Confidence < 0.5 {
 version does not model, preserved as `UnknownAnswer` so a newer API cannot
 silently drop data.
 
+For audit, calibration and verbatim storage, the response keeps the exact body
+the API returned. `response.Raw` is that body byte for byte, and `RawAnswer`
+returns one answer object exactly as it was sent, including fields this SDK
+does not model. `Raw` is excluded from marshaling, so a typed round trip never
+rewrites it:
+
+```go
+raw, ok := response.RawAnswer("department")
+// raw is the answer object exactly as the API sent it.
+```
+
 ## Ask many questions in one call
 
 Every question in a request is evaluated against the same state, in parallel,
@@ -523,14 +534,15 @@ question := jev.RawQuestion{
 }
 
 // 3. Receive answer kinds this SDK does not model: they arrive as
-//    jev.UnknownAnswer with the raw JSON preserved.
+//    jev.UnknownAnswer with the raw JSON preserved. For any answer kind,
+//    response.Raw and response.RawAnswer return the bytes exactly as sent.
 ```
 
 ## API surface
 
 - `Client` — `SystemOne`, `SystemOneAsync`, `StreamSystemOne`, `ListModels`, `ListModelsAsync`, `Model`, `BaseURL`
 - Questions — `Noul`, `Choice`, `Score`, `RawQuestion`, `NoulCriteria`, `Choices`, `Questions`
-- Answers — `SystemOneResponse` (`Noul`, `Choice`, `Score`, `Nouls`, `Choices`, `Scores`, `Answer`), `NoulAnswer`, `ChoiceAnswer`, `ScoreAnswer`, `UnknownAnswer`, `Answers`, `Usage`
+- Answers — `SystemOneResponse` (`Noul`, `Choice`, `Score`, `Nouls`, `Choices`, `Scores`, `Answer`, `Raw`, `RawAnswer`), `NoulAnswer`, `ChoiceAnswer`, `ScoreAnswer`, `UnknownAnswer`, `Answers`, `Usage`
 - Concurrency — `Future[T]` (`Done`, `Result`, `Wait`), `StreamResult`, `StreamOption`s (`WithStreamConcurrency`, `WithStreamOrdered`, `WithStreamCallOptions`)
 - Models — `ModelMetadata`, `ModelsResponse`, `ModelJevLatest`, `ModelJevPreview`, `ModelJev1130`
 - Configuration — `Option`s, `CallOption`s, `RetryPolicy`, `DefaultRetryPolicy`

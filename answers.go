@@ -261,12 +261,36 @@ type SystemOneResponse struct {
 	// RequestID is the x-typesafe-request-id response header. Quote it in
 	// support requests.
 	RequestID string `json:"-"`
+	// Raw is the exact response body the API returned, for audit, calibration
+	// and verbatim raw-answer storage. It is excluded from JSON marshaling —
+	// marshaling writes the typed fields — and RawAnswer reads answer objects
+	// out of it.
+	Raw json.RawMessage `json:"-"`
 }
 
 // Answer returns the answer stored under name.
 func (r *SystemOneResponse) Answer(name string) (Answer, bool) {
 	answer, ok := r.Answers[name]
 	return answer, ok
+}
+
+// RawAnswer returns the bytes of one answer object exactly as the API sent
+// them, including fields and answer kinds this SDK version does not model. It
+// reports false when the response carries no raw body — a response built by
+// hand or decoded from a marshaled value — or when no answer is stored under
+// name.
+func (r *SystemOneResponse) RawAnswer(name string) (json.RawMessage, bool) {
+	if len(r.Raw) == 0 {
+		return nil, false
+	}
+	var envelope struct {
+		Answers map[string]json.RawMessage `json:"answers"`
+	}
+	if err := json.Unmarshal(r.Raw, &envelope); err != nil {
+		return nil, false
+	}
+	raw, ok := envelope.Answers[name]
+	return raw, ok
 }
 
 // Noul returns the Noul answer stored under name.

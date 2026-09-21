@@ -6,6 +6,17 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-21
+
+### Added
+
+- `SystemOneResponse.Raw` and `ModelsResponse.Raw` keep the exact response
+  body the API returned, and `SystemOneResponse.RawAnswer` returns one answer
+  object's bytes verbatim, including fields and answer kinds the SDK does not
+  model. Both fields are excluded from JSON marshaling.
+- `cmd/jev --json` now prints the response body exactly as received instead of
+  re-marshaling the typed response.
+
 ## [0.1.0] - 2026-09-19
 
 ### Added
@@ -32,5 +43,6 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Tests against the vendored OpenAPI specification and opt-in end-to-end tests
   against the live TypeSafe API.
 
-[Unreleased]: https://github.com/mheers/typesafeai-systemone-jev-go/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/mheers/typesafeai-systemone-jev-go/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/mheers/typesafeai-systemone-jev-go/releases/tag/v0.1.1
 [0.1.0]: https://github.com/mheers/typesafeai-systemone-jev-go/releases/tag/v0.1.0

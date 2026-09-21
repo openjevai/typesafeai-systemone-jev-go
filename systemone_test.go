@@ -606,3 +606,73 @@ func TestRequestMarshalOrderIsStable(t *testing.T) {
 		}
 	}
 }
+
+// rawAnswersBody is deliberately formatted: inner spacing, key order, an
+// answer field the SDK does not model and a top-level extra field are all part
+// of the fixture, so a re-marshaled response cannot pass as the raw body.
+const rawAnswersBody = `{
+  "model": "jev-latest",
+  "answers": {
+    "is_urgent": {"type": "noul", "noul": 0.92, "note": "kept verbatim"},
+    "future": {"type": "ranking", "ranking": ["a", "b"]}
+  },
+  "usage": {"input_tokens": 12, "output_tokens": 3},
+  "extra": 1e3
+}`
+
+func TestSystemOnePreservesRawResponse(t *testing.T) {
+	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(rawAnswersBody))
+	})
+
+	response, err := client.SystemOne(context.Background(), SystemOneRequest{
+		State:     "hello",
+		Questions: Questions{"is_urgent": Noul{Instructions: "Is it urgent?"}},
+	})
+	if err != nil {
+		t.Fatalf("SystemOne: %v", err)
+	}
+
+	if got := string(response.Raw); got != rawAnswersBody {
+		t.Errorf("Raw changed:\ngot  %s\nwant %s", got, rawAnswersBody)
+	}
+	got, ok := response.RawAnswer("is_urgent")
+	if !ok {
+		t.Fatal("RawAnswer(is_urgent) not found")
+	}
+	if want := `{"type": "noul", "noul": 0.92, "note": "kept verbatim"}`; string(got) != want {
+		t.Errorf("RawAnswer(is_urgent) = %s, want %s", got, want)
+	}
+	got, ok = response.RawAnswer("future")
+	if !ok {
+		t.Fatal("RawAnswer(future) not found")
+	}
+	if want := `{"type": "ranking", "ranking": ["a", "b"]}`; string(got) != want {
+		t.Errorf("RawAnswer(future) = %s, want %s", got, want)
+	}
+	if _, ok := response.RawAnswer("missing"); ok {
+		t.Error("RawAnswer(missing) found, want false")
+	}
+}
+
+func TestListModelsPreservesRawResponse(t *testing.T) {
+	const body = `{
+  "models": [
+    {"name": "jev-latest", "description": "General-purpose.", "release_date": "2026-09-15"}
+  ],
+  "extra": 1e3
+}`
+	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(body))
+	})
+
+	models, err := client.ListModels(context.Background())
+	if err != nil {
+		t.Fatalf("ListModels: %v", err)
+	}
+	if got := string(models.Raw); got != body {
+		t.Errorf("Raw changed:\ngot  %s\nwant %s", got, body)
+	}
+}

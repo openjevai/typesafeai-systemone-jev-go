@@ -3,6 +3,7 @@ package jev
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -141,5 +142,62 @@ func TestAnswersRejectMissingType(t *testing.T) {
 		if err := json.Unmarshal([]byte(payload), &answers); err == nil {
 			t.Errorf("Unmarshal(%s) succeeded, want an error", payload)
 		}
+	}
+}
+
+func TestRawAnswer(t *testing.T) {
+	response := &SystemOneResponse{
+		Raw: json.RawMessage(`{"model":"jev-latest","answers":{"is_urgent": {"type": "noul", "noul": 0.92}, "future": {"type":"ranking","ranking":["a"]}},"usage":{}}`),
+	}
+
+	got, ok := response.RawAnswer("is_urgent")
+	if !ok {
+		t.Fatal("RawAnswer(is_urgent) not found")
+	}
+	if want := `{"type": "noul", "noul": 0.92}`; string(got) != want {
+		t.Errorf("RawAnswer(is_urgent) = %s, want %s", got, want)
+	}
+
+	got, ok = response.RawAnswer("future")
+	if !ok {
+		t.Fatal("RawAnswer(future) not found")
+	}
+	if want := `{"type":"ranking","ranking":["a"]}`; string(got) != want {
+		t.Errorf("RawAnswer(future) = %s, want %s", got, want)
+	}
+
+	if _, ok := response.RawAnswer("missing"); ok {
+		t.Error("RawAnswer(missing) found, want false")
+	}
+	if _, ok := (&SystemOneResponse{}).RawAnswer("is_urgent"); ok {
+		t.Error("RawAnswer on a response without a raw body found an answer")
+	}
+	if _, ok := (&SystemOneResponse{Raw: json.RawMessage(`{`)}).RawAnswer("is_urgent"); ok {
+		t.Error("RawAnswer on a malformed raw body found an answer")
+	}
+}
+
+func TestSystemOneResponseMarshalOmitsRaw(t *testing.T) {
+	response := &SystemOneResponse{
+		Model:   "jev-latest",
+		Answers: Answers{"is_urgent": NoulAnswer{Noul: 0.92}},
+		Raw:     json.RawMessage(`{"answers":{"is_urgent":{"type":"noul","noul":0.92}},"extra":1e3}`),
+	}
+	raw, err := json.Marshal(response)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if strings.Contains(string(raw), "extra") {
+		t.Errorf("marshaled response contains raw-body fields: %s", raw)
+	}
+	var decoded SystemOneResponse
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		t.Fatalf("Unmarshal(%s): %v", raw, err)
+	}
+	if decoded.Raw != nil {
+		t.Errorf("Raw = %s, want nil after a typed round trip", decoded.Raw)
+	}
+	if answer := decoded.Answers["is_urgent"].(NoulAnswer); answer.Noul != 0.92 {
+		t.Errorf("answer = %+v", answer)
 	}
 }

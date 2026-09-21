@@ -109,7 +109,10 @@ func (c *Client) SystemOne(ctx context.Context, req SystemOneRequest, opts ...Ca
 	if err != nil {
 		return nil, err
 	}
-	result := &SystemOneResponse{RequestID: response.Header.Get(headerRequestID)}
+	result := &SystemOneResponse{
+		RequestID: response.Header.Get(headerRequestID),
+		Raw:       responseBody,
+	}
 	if err := json.Unmarshal(responseBody, result); err != nil {
 		return nil, &InvalidResponseError{StatusCode: response.StatusCode, Body: responseBody, Err: err}
 	}

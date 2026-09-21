@@ -23,6 +23,9 @@ type ModelsResponse struct {
 	Models []ModelMetadata `json:"models"`
 	// RequestID is the x-typesafe-request-id response header.
 	RequestID string `json:"-"`
+	// Raw is the exact response body the API returned. It is excluded from
+	// JSON marshaling.
+	Raw json.RawMessage `json:"-"`
 }
 
 // ListModels returns the model names the account can send in the model field.
@@ -37,7 +40,10 @@ func (c *Client) ListModels(ctx context.Context, opts ...CallOption) (*ModelsRes
 	if err != nil {
 		return nil, err
 	}
-	result := &ModelsResponse{RequestID: response.Header.Get(headerRequestID)}
+	result := &ModelsResponse{
+		RequestID: response.Header.Get(headerRequestID),
+		Raw:       responseBody,
+	}
 	if err := json.Unmarshal(responseBody, result); err != nil {
 		return nil, &InvalidResponseError{StatusCode: response.StatusCode, Body: responseBody, Err: err}
 	}

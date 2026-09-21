@@ -262,7 +262,7 @@ func runModels(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	if options.jsonOut {
-		return writeJSON(stdout, response)
+		return writeRaw(stdout, response.Raw, response)
 	}
 	table := tabwriter.NewWriter(stdout, 0, 4, 2, ' ', 0)
 	for _, model := range response.Models {
@@ -537,7 +537,7 @@ func readBatchRequests(path string, stdin io.Reader) ([]jev.SystemOneRequest, er
 // writeResponse writes a response as JSON or as a compact table.
 func writeResponse(w io.Writer, response *jev.SystemOneResponse, asJSON bool) error {
 	if asJSON {
-		return writeJSON(w, response)
+		return writeRaw(w, response.Raw, response)
 	}
 	table := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
 	ids := make([]string, 0, len(response.Answers))
@@ -560,6 +560,23 @@ func writeResponse(w io.Writer, response *jev.SystemOneResponse, asJSON bool) er
 		}
 	}
 	return table.Flush()
+}
+
+// writeRaw writes the exact response body the SDK kept, falling back to
+// marshaling the typed value for responses without raw bytes. It terminates
+// the output with a newline unless the body already ends with one.
+func writeRaw(w io.Writer, raw json.RawMessage, fallback any) error {
+	if len(raw) == 0 {
+		return writeJSON(w, fallback)
+	}
+	if _, err := w.Write(raw); err != nil {
+		return err
+	}
+	if raw[len(raw)-1] != '\n' {
+		_, err := w.Write([]byte("\n"))
+		return err
+	}
+	return nil
 }
 
 // writeJSON writes indented JSON.

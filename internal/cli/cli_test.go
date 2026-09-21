@@ -434,3 +434,45 @@ func decodeRequestBody(t *testing.T, r *http.Request) (map[string]any, error) {
 	}
 	return body, nil
 }
+
+// rawAskBody is deliberately formatted so the CLI test can tell the verbatim
+// response apart from a re-marshaled one.
+const rawAskBody = `{
+  "model": "jev-latest",
+  "answers": {
+    "is_urgent": {"type": "noul", "noul": 0.99, "note": "kept verbatim"}
+  },
+  "usage": {"input_tokens": 12, "output_tokens": 3},
+  "extra": 1e3
+}`
+
+func TestAskCommandJSONPrintsRawResponse(t *testing.T) {
+	questions := writeTempFile(t, "questions.json", `{"is_urgent": {"type": "noul", "instructions": "Is it urgent?"}}`)
+	code, stdout, stderr := runCLI(t, []string{"ask", "--json", "--questions", questions, "--state", "help"}, "", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(rawAskBody))
+	})
+	if code != 0 {
+		t.Fatalf("exit code = %d, stderr = %s", code, stderr)
+	}
+	if want := rawAskBody + "\n"; stdout != want {
+		t.Errorf("stdout changed:\ngot  %s\nwant %s", stdout, want)
+	}
+}
+
+func TestModelsCommandJSONPrintsRawResponse(t *testing.T) {
+	const body = `{
+  "models": [{"name": "jev-latest", "description": "General-purpose.", "release_date": "2026-09-15"}],
+  "extra": 1e3
+}`
+	code, stdout, stderr := runCLI(t, []string{"models", "--json"}, "", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(body))
+	})
+	if code != 0 {
+		t.Fatalf("exit code = %d, stderr = %s", code, stderr)
+	}
+	if want := body + "\n"; stdout != want {
+		t.Errorf("stdout changed:\ngot  %s\nwant %s", stdout, want)
+	}
+}

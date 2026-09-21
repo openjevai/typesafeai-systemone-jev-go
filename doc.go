@@ -55,6 +55,10 @@
 // your rubric, and a Noul answer is a number between 0 and 1. Probabilities
 // and confidence guide thresholds and escalation, which your code owns.
 //
+// The response also keeps the exact body the API returned: Raw is that body
+// and RawAnswer returns one answer object verbatim, for audit, calibration and
+// raw-answer storage.
+//
 // The client performs retries with exponential backoff and honors Retry-After
 // on rate limits and overloads. Errors are typed and inspectable with
 // errors.As; see APIError, RateLimitError, TimeoutError, and ConnectionError.
