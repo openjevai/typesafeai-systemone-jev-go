@@ -8,6 +8,8 @@
 A Go client for the TypeSafe System One API — typed judgments your code can act
 on, instead of generated text your code has to parse.
 
+> **OpenJEV support:** Jev is built by [TypeSafe](https://typesafe.ai). This fork keeps TypeSafe as the default and adds optional support for [OpenJEV](https://openjev.sh), a free community gateway to the same Jev model — set `OPENJEV_API_KEY` (or `JEV_PROVIDER=openjev`) to use it. Original project: https://github.com/mheers/typesafeai-systemone-jev-go by @mheers.
+
 TypeSafe's System One models, starting with **Jev**, turn natural language and
 application state into structured answers: a choice from options you define, a
 score along levels you describe, or the probability that a yes/no statement is
@@ -373,13 +375,48 @@ response, err := client.SystemOne(ctx, request,
 
 | Variable | Configures | Default |
 | --- | --- | --- |
-| `TYPESAFE_API_KEY` | API key (required) | — |
+| `TYPESAFE_API_KEY` | API key (required for TypeSafe, the default) | — |
 | `TYPESAFE_BASE_URL` | API root | `https://api.typesafe.ai` |
 | `TYPESAFE_DEFAULT_MODEL` | Model for requests that do not name one | `jev-latest` |
 | `TYPESAFE_LOG_LEVEL` | SDK logging on stderr: `debug`, `info`, `warning`, `error`, `off` | silent |
+| `OPENJEV_API_KEY` | API key for the OpenJEV gateway | — |
+| `JEV_PROVIDER` | API provider: `typesafe` (default) or `openjev` | auto-selected by key availability |
 
 Logging never includes request or response bodies, and the API key is never
 logged.
+
+### OpenJEV
+
+[OpenJEV](https://openjev.sh) is a free community gateway to the same Jev
+model. TypeSafe remains the default; OpenJEV is opt-in and changes nothing for
+existing users. To use it:
+
+```bash
+export OPENJEV_API_KEY=...          # key from https://openjev.sh/dashboard
+# JEV_PROVIDER=openjev is optional; it auto-selects when only
+# OPENJEV_API_KEY is set (no TYPESAFE_API_KEY).
+```
+
+```go
+client, err := jev.NewClient() // auto-detects provider from available keys
+```
+
+Or force it explicitly:
+
+```bash
+export JEV_PROVIDER=openjev
+```
+
+The OpenJEV gateway uses endpoint `https://api.openjev.sh` and model `openjev`.
+Programmatic overrides work as usual:
+
+```go
+client, err := jev.NewClient(
+    jev.WithAPIKey(openjevKey),
+    jev.WithBaseURL(jev.OpenJEVBaseURL),
+    jev.WithModel(jev.ModelOpenJEV),
+)
+```
 
 ## Command line
 
@@ -544,8 +581,8 @@ question := jev.RawQuestion{
 - Questions — `Noul`, `Choice`, `Score`, `RawQuestion`, `NoulCriteria`, `Choices`, `Questions`
 - Answers — `SystemOneResponse` (`Noul`, `Choice`, `Score`, `Nouls`, `Choices`, `Scores`, `Answer`, `Raw`, `RawAnswer`), `NoulAnswer`, `ChoiceAnswer`, `ScoreAnswer`, `UnknownAnswer`, `Answers`, `Usage`
 - Concurrency — `Future[T]` (`Done`, `Result`, `Wait`), `StreamResult`, `StreamOption`s (`WithStreamConcurrency`, `WithStreamOrdered`, `WithStreamCallOptions`)
-- Models — `ModelMetadata`, `ModelsResponse`, `ModelJevLatest`, `ModelJevPreview`, `ModelJev1130`
-- Configuration — `Option`s, `CallOption`s, `RetryPolicy`, `DefaultRetryPolicy`
+- Models — `ModelMetadata`, `ModelsResponse`, `ModelJevLatest`, `ModelJevPreview`, `ModelJev1130`, `ModelOpenJEV`
+- Configuration — `Option`s, `CallOption`s, `RetryPolicy`, `DefaultRetryPolicy`, `OpenJEVBaseURL`, `EnvOpenJEVAPIKey`, `EnvProvider`
 - Command — `cmd/jev`
 - Errors — see above
 

@@ -17,7 +17,9 @@
 // including speculative ones, and use the answers you care about.
 //
 // Create a client with NewClient, which reads the TYPESAFE_API_KEY
-// environment variable, then ask any number of questions about one state:
+// environment variable, then ask any number of questions about one state.
+// Set JEV_PROVIDER=openjev or only OPENJEV_API_KEY to use the OpenJEV
+// community gateway (https://openjev.sh) instead. TypeSafe stays the default.
 //
 //	client, err := jev.NewClient()
 //	if err != nil {

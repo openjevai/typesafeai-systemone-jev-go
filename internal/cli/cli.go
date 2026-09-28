@@ -35,9 +35,12 @@ Commands:
   version  Show the SDK version
 
 Configuration:
-  TYPESAFE_API_KEY        API key (required)
+  TYPESAFE_API_KEY        API key (required for TypeSafe, the default)
   TYPESAFE_BASE_URL       API root (default https://api.typesafe.ai)
   TYPESAFE_DEFAULT_MODEL  Model for requests that do not name one
+  OPENJEV_API_KEY         API key for the OpenJEV gateway (see JEV_PROVIDER)
+  JEV_PROVIDER            "typesafe" (default) or "openjev"; auto-selected by
+                          key availability when unset
 
 Examples:
   jev models

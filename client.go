@@ -22,6 +22,15 @@ const (
 	DefaultTimeout = 10 * time.Second
 )
 
+// OpenJEV is a community gateway to the same Jev model. These constants let
+// callers point the client at it alongside TypeSafe. See https://openjev.sh.
+const (
+	// OpenJEVBaseURL is the OpenJEV API root.
+	OpenJEVBaseURL = "https://api.openjev.sh"
+	// ModelOpenJEV is the model id accepted by the OpenJEV gateway.
+	ModelOpenJEV = "openjev"
+)
+
 // Model identifiers accepted by the model field. Versioned IDs stay put even
 // as aliases move; pin one when thresholds are tuned against a release.
 const (
@@ -44,6 +53,19 @@ const (
 	// EnvLogLevel enables SDK logging on stderr at the given level; one of
 	// "debug", "info", "warning" (or "warn"), "error", or "off".
 	EnvLogLevel = "TYPESAFE_LOG_LEVEL"
+)
+
+// OpenJEV environment variables. OpenJEV is a community gateway to the same
+// Jev model; TypeSafe remains the default. Set JEV_PROVIDER=openjev or rely
+// on key availability (see NewClient).
+const (
+	// EnvOpenJEVAPIKey holds the OpenJEV API key. Used when JEV_PROVIDER=openjev
+	// or when only OPENJEV_API_KEY is set and TYPESAFE_API_KEY is not.
+	EnvOpenJEVAPIKey = "OPENJEV_API_KEY"
+	// EnvProvider selects the API provider: "typesafe" (default) or "openjev".
+	// When unset, the provider is chosen by key availability: TypeSafe if
+	// TYPESAFE_API_KEY is set, otherwise OpenJEV if OPENJEV_API_KEY is set.
+	EnvProvider = "JEV_PROVIDER"
 )
 
 // Client talks to the TypeSafe System One API. It is safe for concurrent use
@@ -84,6 +106,12 @@ type Option func(*config) error
 // then the defaults DefaultBaseURL, DefaultModel, DefaultTimeout, and
 // DefaultRetryPolicy.
 //
+// Provider selection: set JEV_PROVIDER=openjev to use the OpenJEV gateway
+// (https://openjev.sh), or set only OPENJEV_API_KEY (without
+// TYPESAFE_API_KEY) to auto-select it. TypeSafe is the default when
+// TYPESAFE_API_KEY is set. The OpenJEV gateway uses model "openjev" and
+// endpoint https://api.openjev.sh.
+//
 // It returns an error wrapping ErrNoAPIKey when no API key is available.
 func NewClient(opts ...Option) (*Client, error) {
 	cfg := config{
@@ -93,14 +121,37 @@ func NewClient(opts ...Option) (*Client, error) {
 		retry:   DefaultRetryPolicy(),
 		header:  make(http.Header),
 	}
+	// Provider selection: JEV_PROVIDER explicitly selects the API provider.
+	// When unset, TypeSafe is the default if TYPESAFE_API_KEY is set;
+	// otherwise OpenJEV is used if only OPENJEV_API_KEY is set. TypeSafe
+	// stays the unchanged default for anyone with a TypeSafe key.
+	provider := strings.ToLower(strings.TrimSpace(os.Getenv(EnvProvider)))
+	useOpenJEV := provider == "openjev"
+	if provider == "" {
+		_, hasTypeSafeKey := envValue(EnvAPIKey)
+		_, hasOpenJEVKey := envValue(EnvOpenJEVAPIKey)
+		if !hasTypeSafeKey && hasOpenJEVKey {
+			useOpenJEV = true
+		}
+	}
+	if useOpenJEV {
+		cfg.baseURL = OpenJEVBaseURL
+		cfg.model = ModelOpenJEV
+	}
 	if value, ok := envValue(EnvBaseURL); ok {
 		cfg.baseURL = value
 	}
 	if value, ok := envValue(EnvModel); ok {
 		cfg.model = value
 	}
-	if value, ok := envValue(EnvAPIKey); ok {
-		cfg.apiKey = value
+	if useOpenJEV {
+		if value, ok := envValue(EnvOpenJEVAPIKey); ok {
+			cfg.apiKey = value
+		}
+	} else {
+		if value, ok := envValue(EnvAPIKey); ok {
+			cfg.apiKey = value
+		}
 	}
 	if level, ok := parseLogLevel(os.Getenv(EnvLogLevel)); ok {
 		cfg.logLevel = level
@@ -115,7 +166,11 @@ func NewClient(opts ...Option) (*Client, error) {
 		}
 	}
 	if cfg.apiKey == "" {
-		return nil, fmt.Errorf("%w: set the %s environment variable or use jev.WithAPIKey", ErrNoAPIKey, EnvAPIKey)
+		keyEnv := EnvAPIKey
+		if useOpenJEV {
+			keyEnv = EnvOpenJEVAPIKey
+		}
+		return nil, fmt.Errorf("%w: set the %s environment variable or use jev.WithAPIKey", ErrNoAPIKey, keyEnv)
 	}
 	parsed, err := url.Parse(cfg.baseURL)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
